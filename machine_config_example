@@ -1,11 +1,14 @@
 # This is an example of config file for the new machine model
 # comp_device:
 # Compute devices are created evenly based on the following settings.
-num_nodes = 2
-num_sockets_per_node = 2
-num_cpus_per_socket = 10
-num_gpus_per_socket = 2
-
+num_nodes = 1
+num_sockets_per_node = 1
+num_cpus_per_socket = 4
+num_gpus_per_socket = 4
+gpu_model_per_node = 201
+# gpu_model_per_node = A40 A100
+cpu_model_per_node = "100 
+# cpu_model_per_node = Skylake Icelake 
 # mem_device:
 # Memories are created automatically. Currently, we support three kinds of memories - system memory, zero-copy memory, and GPU framebuffer memory. Each socket has one system memory (sys_mem) and one zero-copy memory (z_copy_mem); each GPU has one frame buffer memory (gpu_fb_mem).
 
@@ -20,7 +23,7 @@ upi_bandwidth = 10.14039
 # inter-node links, the third argument means the number of NICs per socket (O means one NIC per node)
 nic_latency = 0.000507
 nic_bandwidth = 10.9448431
-nic_persocket = 0
+nic_persocket = 1
 # pci-e between CPU and GPU
 pci_latency = 0.001
 pci_bandwidth = 12.578468749999999

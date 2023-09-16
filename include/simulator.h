@@ -61,9 +61,22 @@ public:
         LOC_PROC,   //CPU
         TOC_PROC,   //GPU
     };
+
+    enum CompModType {
+        //CPU 1xx
+        Skylake = 100,  
+        Cascadelake = 101,
+        Icelake = 102,
+        //GPU  2xx
+        T4 = 200,
+        A40 = 201,
+        A100 = 202,
+    };
+
     CompDevType comp_type;
+    CompModType comp_model;
     size_t capacity;
-    CompDevice(std::string const &name, CompDevType comp_type, int node_id, int socket_id, int device_id);
+    CompDevice(std::string const &name, CompDevType comp_type, CompModType comp_model, int node_id, int socket_id, int device_id);
 };
 
 class MemDevice : public Device {
@@ -193,6 +206,8 @@ private:
     float nvlink_latency;
     float nvlink_bandwidth;
     size_t gpu_fb_mem_capacity;
+    std::vector<CompDevice::CompModType> cpu_models;             // cpu_model
+    std::vector<CompDevice::CompModType> gpu_models;             // gpu_model
     std::vector<CommDevice::CommDevType> intra_socket_sys_mem_to_sys_mem;
     std::vector<CommDevice::CommDevType> inter_socket_sys_mem_to_sys_mem;
     std::vector<CommDevice::CommDevType> inter_node_sys_mem_to_sys_mem;
@@ -360,6 +375,8 @@ public:
   static void strategy_search_task(const Task *task,
                                    const std::vector<PhysicalRegion> &regions,
                                    Context ctx, Runtime *runtime);
+    void save_op_cost();
+    void load_op_cost();
 public:
   Realm::RegionInstance simulatorInst;
   MachineModel *machine;

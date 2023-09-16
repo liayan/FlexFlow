@@ -16,7 +16,8 @@ SimpleMachineModel::SimpleMachineModel(int num_nodes, int num_gpus_per_node, siz
     for (int j = 0; j < num_gpus_per_node; j++) {
       int device_id = i * num_gpus_per_node + j;
       std::string gpu_name = "GPU " + std::to_string(device_id);
-      id_to_gpu[device_id] = new CompDevice(gpu_name, CompDevice::TOC_PROC, i, i, device_id);
+      CompDevice::CompModType gpu_model = CompDevice::A40;
+      id_to_gpu[device_id] = new CompDevice(gpu_name, CompDevice::TOC_PROC, gpu_model, i, i, device_id);
       std::string gpu_mem_name = "GPU_FB_MEM " + std::to_string(device_id);
       id_to_gpu_fb_mem[device_id] = new MemDevice(gpu_mem_name, MemDevice::GPU_FB_MEM, i, i, device_id, capacity);
     }
@@ -194,9 +195,25 @@ EnhancedMachineModel::EnhancedMachineModel(std::string file, size_t gpu_fb_mem_c
           num_cpus_per_socket = stoi(words[2]);
           printf("num_cpus_per_socket = %d\n", num_cpus_per_socket);
         }
+        else if (words[0] == "cpu_model_per_socket") {
+          printf("cpu model per socket = ");
+          for (size_t i = 2; i < words.size(); i++) {
+            cpu_models.push_back((CompDevice::CompModType)stoi(words[i]));
+            printf("%s ", words[i].c_str());
+          }
+          printf("\n");
+        }
         else if (words[0] == "num_gpus_per_socket") {
           num_gpus_per_socket = stoi(words[2]);
           printf("num_gpus_per_socket = %d\n", num_gpus_per_socket);
+        }
+        else if (words[0] == "gpu_model_per_socket") {
+          printf("gpu model per socket = ");
+          for (size_t i = 2; i < words.size(); i++) {
+            gpu_models.push_back((CompDevice::CompModType)stoi(words[i]));
+            printf("%s ", words[i].c_str());
+          }
+          printf("\n");
         }
         else if (words[0] == "membus_latency") {
           membus_latency = stof(words[2]);
@@ -406,7 +423,8 @@ void EnhancedMachineModel::add_cpus()
       for (int k = 0; k < num_cpus_per_socket; k++) {
         device_id = socket_id * num_cpus_per_socket + k;
         std::string cpu_name = "CPU " + std::to_string(device_id);
-        cpus[socket_id].emplace_back(new CompDevice(cpu_name, CompDevice::LOC_PROC, node_id, socket_id, device_id));
+        CompDevice::CompModType cpu_model = cpu_models[socket_id];
+        cpus[socket_id].emplace_back(new CompDevice(cpu_name, CompDevice::LOC_PROC, cpu_model, node_id, socket_id, device_id));
       }
     }
   }
@@ -429,7 +447,8 @@ void EnhancedMachineModel::add_gpus()
       for (int k = 0; k < num_gpus_per_socket; k++) {
           device_id = socket_id * num_gpus_per_socket + k;
           std::string gpu_name = "GPU " + std::to_string(device_id);
-          gpus[socket_id].push_back(new CompDevice(gpu_name, CompDevice::TOC_PROC, node_id, socket_id, device_id));
+          CompDevice::CompModType gpu_model = gpu_models[socket_id];
+          gpus[socket_id].push_back(new CompDevice(gpu_name, CompDevice::TOC_PROC, gpu_model, node_id, socket_id, device_id));
           std::string gpu_mem_name = "GPU_FB_MEM " + std::to_string(device_id);
           MemDevice *gpu_mem = new MemDevice(gpu_mem_name, MemDevice::GPU_FB_MEM, node_id, socket_id, device_id, gpu_fb_mem_capacity);
           gpu_fb_mems[socket_id].push_back({gpu_mem});
@@ -810,9 +829,11 @@ std::string EnhancedMachineModel::to_string() const
       s += "COMP: \n";
       for (int k = 0; k < num_cpus_per_socket; k++) {
         s += cpus[socket_id][k]->name + '\n';
+        s += cpus[socket_id][k]->comp_model + '\n';
       }
       for (int k = 0; k < num_gpus_per_socket; k++) {
         s += gpus[socket_id][k]->name + '\n';
+        s += gpus[socket_id][k]->comp_model + '\n';
       }
       s += '\n';
       s += "MEM: \n";

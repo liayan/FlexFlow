@@ -43,7 +43,7 @@ Device::Device(std::string const &name, DeviceType type, int node_id, int socket
 : name(name), type(type), node_id(node_id), socket_id(socket_id), device_id(device_id)
 {}
 
-CompDevice::CompDevice(std::string const &name, CompDevType comp_type, int node_id, int socket_id, int device_id)
+CompDevice::CompDevice(std::string const &name, CompDevType comp_type, CompModType comp_model, int node_id, int socket_id, int device_id)
 : Device(name, Device::DEVICE_COMP, node_id, socket_id, device_id), comp_type(comp_type)
 {}
 
@@ -304,7 +304,11 @@ void Simulator::add_task_dependencies_with_xfer(SimTask* src_task,
 
 CostMetrics Simulator::measure_operator_cost(Op* op, const ParallelConfig& config)
 {
-  size_t hash = 17 * 31 + (size_t)(op);
+  //size_t hash = 17 * 31 + (size_t)(op);
+  size_t hash = 17 * 31 + std::hash<int>()(op->op_type);
+  hash = hash * 31 + std::hash<int>()(op->numOutputs);
+  hash = hash * 31 + std::hash<int>()(op->numInputs);
+  hash = hash * 31 + std::hash<int>()(op->numOutputs);  
   hash = hash * 31 + std::hash<int>()(config.device_type);
   hash = hash * 31 + std::hash<int>()(config.nDims);
   for (int i = 0; i < config.nDims; i++)
@@ -312,14 +316,23 @@ CostMetrics Simulator::measure_operator_cost(Op* op, const ParallelConfig& confi
   std::map<size_t, CostMetrics>::const_iterator iter =
     hash_to_operator_cost.find(hash);
   if (iter == hash_to_operator_cost.end()) {
+    printf("============= first time to measure op cost ============\n\n");
+    printf("op type: %d, op numberInputs: %d, op number weights: %d, op number output: %d \n",op->op_type, op->numInputs, op->numWeights, op->numOutputs);
     CostMetrics cost_metrics;
     bool is_implemented = op->measure_operator_cost(this, config, cost_metrics);
     if (! is_implemented) {
       handle_measure_operator_cost_unimplemented(op);
     }
+    printf("hash: %zu, size_t_op: %zu, size_of_op: %zu, nDims: %zu, memory_size: %zu \n",hash,(size_t)(op),sizeof(*op),std::hash<int>()(config.nDims),cost_metrics.memory_requirement);
+    for (int i = 0; i < config.nDims; i++){
+      printf("dim: %zu \n",std::hash<int>()(config.dim[i]));
+    }
     hash_to_operator_cost[hash] = cost_metrics;
     return cost_metrics;
   } else {
+    printf("============= second time to measure op cost ============\n\n");
+    //printf("hash: %zu, size_t_op: %zu, hash_device_type: %zu, hash_nDims: %zu, memory_size: %zu \n",hash,(size_t)(op),std::hash<int>()(config.device_type),std::hash<int>()(config.nDims),iter->second.memory_requirement);
+    printf("op type: %d, op numberInputs: %d, op number weights: %d, op number output: %d \n",op->op_type, op->numInputs, op->numWeights, op->numOutputs);
     return iter->second;
   }
 }
@@ -634,4 +647,59 @@ float Simulator::simulate_runtime(const FFModel* model,
   //if (memory_penalty > 0.0f)
   //  printf("Memory penalty = %.4lf ms\n", memory_penalty);
   return sim_time + memory_penalty;
+}
+
+void Simulator::load_op_cost(void)
+{
+  printf("============= Load op cost here ============\n\n");
+  // get op cost from local files
+  std::string filename = "op_cost.db";
+
+  std::fstream input(filename, std::ios::in);
+  if (!input) {
+    std::cerr << "Failed to open op cost file for reading" << std::endl;
+    return;
+  }
+
+  int ops_size = 0;
+  input >> ops_size; 
+
+  printf("============= map size of op cost: %d ============\n\n",ops_size);
+  for (int i = 0; i < ops_size; i++) 
+  {
+    std::string words[4];
+    for(int j = 0; j < 4; j++) {
+      input >> words[j];
+    }
+    CostMetrics cost_metrics;
+    size_t op_hash = std::stoull(words[0]);
+    cost_metrics.forward_time = std::stof(words[1]);
+    cost_metrics.backward_time = std::stof(words[2]);
+    cost_metrics.memory_requirement = std::stoull(words[3]);
+    hash_to_operator_cost[op_hash] = cost_metrics;
+    printf("hash: %zu, forward_time: %f, backword_time: %f, memory_size: %zu \n",op_hash,cost_metrics.forward_time,cost_metrics.backward_time,cost_metrics.memory_requirement);
+  }
+  input.close();
+  printf("============= map size of op cost: %d ============\n\n",hash_to_operator_cost.size());
+}
+void Simulator::save_op_cost(void)
+{
+  //================
+  printf("============= Save op cost here ============\n\n");
+  std::string filename = "op_cost.db"; 
+  std::fstream output(filename, std::ios::out | std::ios::trunc);
+  if (!output) {
+    std::cerr << "Failed to open op_cost file for writing!" << std::endl;
+    return;
+  }
+  output << hash_to_operator_cost.size() << std::endl;   
+  std::map<size_t, CostMetrics>::const_iterator it;
+  for (it = hash_to_operator_cost.begin(); it != hash_to_operator_cost.end(); it++) {
+    output << it->first << '\t';
+    CostMetrics cost_metrics = it->second;
+    output << cost_metrics.forward_time << '\t';
+    output << cost_metrics.backward_time << '\t';
+    output << cost_metrics.memory_requirement << std::endl;
+  }
+  output.close();
 }

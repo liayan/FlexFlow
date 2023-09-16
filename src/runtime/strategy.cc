@@ -178,9 +178,6 @@ bool save_strategies_to_file(const std::string& filename,
     }
     output << std::endl;
     output << n << std::endl;
-    for (int j = 0; j < n; j++) {
-      output << config.device_ids[j] << '\t';
-    }
     output << std::endl;
   }
   

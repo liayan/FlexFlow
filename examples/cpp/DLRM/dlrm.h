@@ -14,7 +14,8 @@
  */
 
 #include "model.h"
-#define MAX_NUM_SAMPLES 65536
+//#define MAX_NUM_SAMPLES 65536
+#define MAX_NUM_SAMPLES 1024
 #define MAX_NUM_EMB 1000
 #define MAX_NUM_MLPS 100 
 #define MAX_DATASET_PATH_LEN 1023

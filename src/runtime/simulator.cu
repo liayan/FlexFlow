@@ -67,6 +67,7 @@ Simulator::~Simulator(void)
   simulatorInst.destroy();
 }
 
+
 __host__
 void Simulator::strategy_search_task(const Task *task,
                                      const std::vector<PhysicalRegion> &regions,
@@ -93,7 +94,8 @@ void Simulator::strategy_search_task(const Task *task,
   // Assume this task is running on GPU0
   Simulator* simulator = new Simulator(model, model->handlers[0], gpu_mem, machine);
   // Set cublas/cudnn streams to allow Realm catch the events
-
+  simulator->load_op_cost();
+  
   cudaStream_t stream;
   checkCUDA(get_legion_stream(&stream));
   checkCUDA(cublasSetStream(simulator->handler.blas, stream));
@@ -128,6 +130,9 @@ void Simulator::strategy_search_task(const Task *task,
   }
   model->optimize(simulator, strategies, model->config.search_budget,
       model->config.search_alpha, model->config.computationMode, model->config.enable_propagation);
+  
+  simulator->save_op_cost();
+
   if (model->config.export_strategy_file.length() > 0) {
     fprintf(stderr, "Exporting the best discovered strategy to %s.\n",
         model->config.export_strategy_file.c_str());
@@ -151,4 +156,6 @@ void Simulator::strategy_search_task(const Task *task,
   delete(simulator);
   delete(machine);
 }
+
+
 
